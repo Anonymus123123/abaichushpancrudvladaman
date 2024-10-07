@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "217323127357",
+    "project_id": "crudvlad",
+    "storage_bucket": "crudvlad.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:217323127357:android:2ea973865da667a7e6a054",
+        "android_client_info": {
+          "package_name": "com.crudvlad.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCo8g0FWcF6xAtgGZi0tKiLRcmwJ7KzkOc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
