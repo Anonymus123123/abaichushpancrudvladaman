@@ -11,50 +11,72 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _currentIndex = 0;
   final TextEditingController textController = TextEditingController();
+  final TextEditingController subjectController = TextEditingController();
   final FirestoreService firestoreService = FirestoreService();
 
   void openNoteBox({Note? note}) {
-    // Если редактируем заметку, заполняем текстовое поле существующим текстом
+    // If we're editing a note, fill the text fields with the existing data
     if (note != null) {
       textController.text = note.noteText;
+      subjectController.text = note.subject.name;
+    } else {
+      textController.clear();
+      subjectController.clear();
     }
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(note == null ? 'Add Note' : 'Update Note'),
-        content: TextField(
-          controller: textController,
-          decoration: const InputDecoration(
-            hintText: 'Enter your note',
-            border: OutlineInputBorder(),
-          ),
-          maxLines: null, // Позволяет вводить текст любой длины
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: textController,
+              decoration: const InputDecoration(
+                hintText: 'Enter your note',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: null,
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: subjectController,
+              decoration: const InputDecoration(
+                hintText: 'Enter subject name',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 1,
+            ),
+          ],
         ),
         actions: [
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               if (note == null) {
-                // Добавление новой заметки
+                // Adding a new note
                 Note newNote = Note(
-                  id: '', // Firestore сгенерирует ID автоматически
+                  id: '', // Firestore will generate the ID automatically
                   noteText: textController.text,
                   timestamp: Timestamp.now(),
+                  subject: Subject(name: subjectController.text),
                 );
-                firestoreService.addNote(newNote);
+                await firestoreService.addNote(newNote);
               } else {
-                // Обновление существующей заметки
+                // Updating an existing note
                 Note updatedNote = Note(
                   id: note.id,
                   noteText: textController.text,
                   timestamp: Timestamp.now(),
+                  subject: Subject(name: subjectController.text),
                 );
-                firestoreService.updateNote(updatedNote);
+                await firestoreService.updateNote(updatedNote);
               }
               textController.clear();
+              subjectController.clear();
               Navigator.pop(context);
+              setState(() {}); // Refresh the UI to reflect the changes
             },
             child: Text(note == null ? 'Add' : 'Update'),
           ),
@@ -67,40 +89,26 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Notes & Subjects")),
-      body: _currentIndex == 0 ? buildNotesTab() : buildSubjectsTab(),
-      floatingActionButton: _currentIndex == 0
-          ? FloatingActionButton(
+      body: buildNotesList(),
+      floatingActionButton: FloatingActionButton(
         onPressed: () => openNoteBox(),
         child: const Icon(Icons.add),
-      )
-          : null,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notes),
-            label: 'Notes',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.subject),
-            label: 'Subjects',
-          ),
-        ],
       ),
     );
   }
 
-  Widget buildNotesTab() {
+  Widget buildNotesList() {
     return StreamBuilder<List<Note>>(
       stream: firestoreService.getNotesStream(),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
           List<Note> notesList = snapshot.data!;
+
+          if (notesList.isEmpty) {
+            return const Center(
+              child: Text("No notes available", style: TextStyle(fontSize: 18)),
+            );
+          }
 
           return ListView.builder(
             itemCount: notesList.length,
@@ -116,7 +124,14 @@ class _HomePageState extends State<HomePage> {
                 child: ListTile(
                   title: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Text(note.noteText, style: const TextStyle(fontSize: 16)),
+                    child: Text(
+                      note.noteText,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Subject: ${note.subject.name}',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -126,7 +141,10 @@ class _HomePageState extends State<HomePage> {
                         icon: const Icon(Icons.edit),
                       ),
                       IconButton(
-                        onPressed: () => firestoreService.deleteNote(note.id),
+                        onPressed: () async {
+                          await firestoreService.deleteNote(note.id);
+                          setState(() {}); // Refresh the UI after deletion
+                        },
                         icon: const Icon(Icons.delete),
                       ),
                     ],
@@ -137,17 +155,10 @@ class _HomePageState extends State<HomePage> {
           );
         } else {
           return const Center(
-            child: Text("No notes available", style: TextStyle(fontSize: 18)),
+            child: CircularProgressIndicator(),
           );
         }
       },
-    );
-  }
-
-  Widget buildSubjectsTab() {
-    // Здесь можно добавить логику для отображения контента таба Subjects.
-    return const Center(
-      child: Text("Subjects content goes here", style: TextStyle(fontSize: 18)),
     );
   }
 }
